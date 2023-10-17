@@ -1,0 +1,152 @@
+---
+title: "Food Trucks"
+author: "Gaurav Law"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(alr4)
+library(broom)
+library(sp)
+library(ggmap)
+```
+
+```{r}
+# Data scraped from Google and put into an Excel spreadsheet, includes 24 food trucks in Indianapolis area
+
+ft <- read_csv("/Users/gauravlaw/Downloads/Food trucks data.csv")
+ft
+```
+
+
+
+
+
+
+
+
+
+```{r}
+ggmap::register_google()
+api_secret <- 'AIzaSyBIyYLxM0d03MH9IBJKv2V5zjVqFMZMSGc'
+register_google(key = api_secret)
+
+indy_road <- get_map('Indianapolis', maptype='roadmap', source="google", api_key = api_secret, zoom=15)
+ggmap(indy_road)
+
+```
+Although our foodie travel route is not the most convenient, I believe this will take us to the most diverse range of the given food groups.
+
+```{r}
+geocode(ft$Address[16])
+geocode("Butler University")
+revgeocode(c(-86.03959, 39.92631))
+```
+
+# Saturday Journey
+
+On Saturday, we travel a total of about 48 miles over 1.5 hours. Starting from our home at Butler University, we will start at an breakfast bagel place, head over to Armenian barbecue, Mexican for a snack and Southern for Dinner.
+
+We find the coordinates of each location we are going to and choose the most optimal route from Point A to Point B. I was having issues doing it altogether — my aesthetics were off, I think something wasn't working correctly or I was unable to determine what the issue was with geom_path — so we are finding each individually.
+
+Because of this, we will see in both Saturday and Sunday's visualizations, that the full route is not connected but split up into five graphs each.
+
+
+```{r}
+# Butler to Bearded Bagel
+trek_df <- trek("Butler University", ft$Address[16], structure = "route")
+
+qmap(location = "Indianapolis", zoom = 9) + geom_path(aes(x = lon, y = lat), color = "purple", size = 1, data = trek_df)
+
+# Bearded Bagel to DavAni Armenian BBQ
+trek_df <- trek(ft$Address[16], ft$Address[10], structure = "route")
+
+qmap(location = "Indianapolis", zoom = 9) + geom_path(aes(x = lon, y = lat), color = "purple", size = 1, data = trek_df)
+
+# DavAni Armenian BBQ to Taqueria Mi Costa
+trek_df <- trek(ft$Address[10], ft$Address[2], structure = "route")
+
+qmap(location = "Indianapolis", zoom = 9) + geom_path(aes(x = lon, y = lat), color = "purple", size = 1, data = trek_df)
+
+# Taqueria Mi Costa to Chef Dan's Indy
+trek_df <- trek(ft$Address[2], ft$Address[24], structure = "route")
+
+qmap(location = "Indianapolis", zoom = 9) + geom_path(aes(x = lon, y = lat), color = "purple", size = 1, data = trek_df)
+
+# Chef Dan's Indy to Butler University
+trek_df <- trek(ft$Address[24], "Butler University", structure = "route")
+
+qmap(location = "Indianapolis", zoom = 9) + geom_path(aes(x = lon, y = lat), color = "purple", size = 1, data = trek_df)
+```
+
+# Sunday Journey
+
+Sunday will be a later start, but we will travel roughly 106 miles over almost 2.5 hours throughout the day, giving us more time to digest our food and sleep in the car. We start with brunch at a deli/salad place, head to a mixed cuisine place for a snack in the late afernoon, grab some pizza for dinner and then we can get another Mexican late snack once the activities are over for the day.
+
+```{r}
+# Butler to J & J A Taste Of Home Catering & Food Truck
+trek_df <- trek("Butler University", ft$Address[17], structure = "route")
+
+qmap(location = "Indianapolis", zoom = 9) + geom_path(aes(x = lon, y = lat), color = "orange", size = 1, data = trek_df)
+
+# J & J A Taste Of Home Catering & Food Truck to Karma's Kitchen Food Truck
+trek_df <- trek(ft$Address[17], ft$Address[21], structure = "route")
+
+qmap(location = "Indianapolis", zoom = 9) + geom_path(aes(x = lon, y = lat), color = "orange", size = 1, data = trek_df)
+
+# Karma's Kitchen Food Truck to Pi Indy
+trek_df <- trek(ft$Address[21], ft$Address[15], structure = "route")
+
+qmap(location = "Indianapolis", zoom = 9) + geom_path(aes(x = lon, y = lat), color = "orange", size = 1, data = trek_df)
+
+# Pi Indy to Birrieria Iturbidense
+trek_df <- trek(ft$Address[15], ft$Address[8], structure = "route")
+
+qmap(location = "Indianapolis", zoom = 9) + geom_path(aes(x = lon, y = lat), color = "orange", size = 1, data = trek_df)
+
+# Birrieria Iturbidense to Butler
+trek_df <- trek(ft$Address[8], "Butler University", structure = "route")
+
+qmap(location = "Indianapolis", zoom = 9) + geom_path(aes(x = lon, y = lat), color = "orange", size = 1, data = trek_df)
+```
+
+
+
+
+
+```{r}
+df <- mapdist(c("Butler University"), ft$Address[16])
+df[nrow(df) + 1,] = c(mapdist(c(ft$Address[16]), ft$Address[10]))
+df[nrow(df) + 1,] = c(mapdist(c(ft$Address[10]), ft$Address[2]))
+df[nrow(df) + 1,] = c(mapdist(c(ft$Address[2]), ft$Address[24]))
+df[nrow(df) + 1,] = c(mapdist(c(ft$Address[24]), "Butler University"))
+
+df[nrow(df) + 1,] = mapdist(c("Butler University"), ft$Address[17])
+df[nrow(df) + 1,] = c(mapdist(c(ft$Address[17]), ft$Address[21]))
+df[nrow(df) + 1,] = c(mapdist(c(ft$Address[21]), ft$Address[15]))
+df[nrow(df) + 1,] = c(mapdist(c(ft$Address[15]), ft$Address[8]))
+df[nrow(df) + 1,] = c(mapdist(c(ft$Address[8]), "Butler University"))
+
+df$Time <- c("9:00 am", "1:00 pm", "4:00 pm", "9:00 pm", "10:30 pm",
+             "11:00 am", "2:00 pm", "7:00 pm", "11:00 pm", "11:45 am")
+df$Day <- c("Saturday", "Saturday", "Saturday", "Saturday", "Saturday",
+            "Sunday", "Sunday", "Sunday", "Sunday", "Sunday")
+df$Meal <- c("Breakfast", "Lunch", "Snack", "Dinner", "Home",
+             "Brunch", "Snack", "Dinner", "Late night", "Home")
+df$Name <- c(ft$Name[16], ft$Name[10], ft$Name[2], ft$Name[24], "Butler University",
+             ft$Name[17], ft$Name[21], ft$Name[15], ft$Name[8], "Butler University")
+df$Cuisine <- c(ft$Cuisine[16], ft$Cuisine[10], ft$Cuisine[2], ft$Cuisine[24], "Home",
+                ft$Cuisine[17], ft$Cuisine[21], ft$Cuisine[15], ft$Cuisine[8], "Home")
+
+df
+
+```
+
+Overall, a very inconvenient way to get around Indianapolis — not really much walking this weekend, almost entirely driving! I hope you enjoyed this project!
+
