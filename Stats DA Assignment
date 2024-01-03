@@ -1,0 +1,306 @@
+---
+title: "Data Analysis Assignment"
+author: "Gaurav Law"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+setwd("/Users/gauravlaw/Desktop/STAT 3301")
+library(tidyverse)
+library(alr4)
+library(broom)
+```
+
+```{r}
+sleep <- read_csv("/Users/gauravlaw/Downloads/sleepdata.csv")
+```
+\
+
+# Part I: Exploratory Analysis
+
+## Question 1
+
+```{r}
+library(GGally)
+
+sleep$logBodyWt <- log(sleep$BodyWt)
+sleep$logBrainWt <- log(sleep$BrainWt)
+sleep$logLife <- log(sleep$Life)
+sleep$logGP <- log(sleep$GP)
+
+view(sleep)
+
+pairs(sleep %>% subset(select = c("TS", "BodyWt", "BrainWt", "Life", "GP")), pch=20, cex=0.5)
+
+c(min(sleep$BodyWt), max(sleep$BodyWt))
+```
+
+Using pairwise plots shows why we should transform the variables into log form. There is no clear relationship between any of the variables, as a line of best fit would indicate either a near-vertical-or-horizontal correlation, further indicating there is no relationship. Also, the range for the values of a single variable may be very large, so a log scale can bring the values within a reasonable range to make solid interpretations; for example, the current range of body weight is [0.005, 6654] kilograms. This large range makes sense intuitvely — there are several species we are examining, so the difference in values in all the variables could be very large. The plots are quite skewed.
+
+It also makes sense to keep the total sleep variable in its original scale because the max sleep time can't be longer than 23:59 hours in a single day. This would make interpretations much easier if kept in original scale.
+
+
+## Question 2
+
+```{r}
+pairs(sleep %>% subset(select = c("TS", "logBodyWt", "logBrainWt", "logLife", "logGP")), pch=20, cex=0.5)
+
+ggplot(sleep, aes(x = D, y = TS)) + geom_boxplot() + theme_bw() + xlab("Danger Level") + ylab("Total Sleep (hours)")
+
+```
+
+There appears to be a negative association between the total sleep and every other log variable. A greater log body weight, log brain weight, max log life span and log gestation time all correspond to a shorter sleep time for an animal. The strongest correlation seems to exist between log brain weight, however, which may make sense because if you are sleeping for long hours during the day, how is your brain supposed to develop? In addition, if you sleep for long hours, it may make sense that your weight is less because there is less overall time you are consuming food. Next, it seems if you sleep for longer hours, your life expectancy seems to decrease — if an animal is not very active, this might make sense. Finally, having a shorter gestation period  indicates sleeping longer — perhaps because animals could experience discomfort during their sleeping hours.
+
+With respect to the other pairwise plots, all the predictors have positive correlations to each other. It makes sense that if you have a bigger brain in size, you are going to weigh more. Something else fairly intuitive is if you weigh more, you have a longer life expectancy — in real-world terms, if you are a predator, you likely weigh more and are probably feasting on smaller prey. Finally, if you weigh more, you likely have a longer gestation period, which makes sense because you will likely have a larger egg to carry and for longer. In addition, if you are expected to live longer, you will also have a longer gestation period.
+
+Finally, it seems as sleep hours increase, an animal's danger level increases as well. That makes sense because likely a lot predators attack prey in their sleep and may be more nocturnal than their prey.
+
+\
+
+# Part II: Understanding Adjusted Relationships
+
+## Question 1
+
+
+```{r}
+sleep.mod <- lm(TS ~ logBodyWt + logBrainWt + logLife + logGP + D, data = sleep)
+summary(sleep.mod)
+```
+
+$$E[TS|logBodyWt, logBrainWt, logLife, logGP, Danger level] = \beta_0 + \beta_1logBodyWt + \beta_2logBrainWt + \beta_3logLife + \beta_4logGP + \beta_5U_{D2} + \beta_6U_{D3} + \beta_7U_{D4} + \beta_8U_{D5} $$
+
+where:\
+$U_{D2} = 1$ if D = 2, 0 otherwise \
+$U_{D3} = 1$ if D = 3, 0 otherwise \
+$U_{D4} = 1$ if D = 4, 0 otherwise \
+$U_{D5} = 1$ if D = 5, 0 otherwise \
+
+## Question 2
+
+$$H_0: \beta_5 = \beta_6 = \beta_7 = \beta_8 = 0 $$ vs. $$ H_1:$$ at least one of $$ \beta_5, \beta_6, \beta_7, \beta_8 \neq 0$$
+
+
+F-test: $\frac{(RSS_{H_0} - RSS_{H_1})/(df_{H_0} - df_{H_1})}{RSS_{H_1}/df_{H_1}} >= 0$
+
+```{r null}
+null.model = lm(TS ~ logBodyWt + logBrainWt + logLife + logGP + D, data = sleep)
+RSS.null = sum(resid(null.model)^2)
+RSS.null
+
+sleep.null = null.model$df.residual
+sleep.null
+```
+
+```{r alternative}
+alt.model = lm(TS ~ logBodyWt + logBrainWt + logLife + logGP, data = sleep)
+RSS.alt = sum(resid(alt.model)^2)
+RSS.alt
+
+sleep.alt = alt.model$df.residual
+sleep.alt
+
+summary(alt.model)
+```
+
+```{r RSS}
+
+F_test = ((RSS.null - RSS.alt)/(sleep.null - sleep.alt)) / (RSS.alt/sleep.alt)
+F_test
+
+p_value <- 1- pf(F_test, 8, 42)
+p_value
+
+```
+
+We want to compare two models — one with the danger levels and one without and its dependence on the total sleeping time of animals. We first test the null hypothesis and find its RSS and degrees of freedom, then do the same for the alternative hypothesis. 
+
+The F-test we are performing is comparing whether the danger levels are needed, so we simply remove the categorical predictor in our alternative model. In this case, we will subtract the alternative RSS from that of the null, divide that value by  the difference in degrees of freedom between the two models and perform a regular test where we divide by the variance under alternative hypothesis, divided by the degrees of freedom of the alternative.
+
+The F-statistic determined was roughly 5.07 and since the p-value = 0.00019 < 0.05, we reject the null hypothesis that the danger levels equal zero in favor of the alternative that at least one of the coefficients of the danger levels does not equal to zero.
+
+This is basically saying that we will more likely use the model without the danger levels than the one with for inference.
+
+
+## Question 3
+
+The variables logBodyWt and logBrainWt correspond to the $\beta_1$ and $\beta_2$ values, the estimated slopes with respect to the baseline of Danger level zero. However, when comparing the changes of those variables to that of the response variable total sleep hours, it seems there is actually a slightly positive correlation between logBodyWt and total sleep hours, which may have been a misinterpretation of the previous plot where it looked as though there was a negative correlation between all the predictors and the response variable. There is still a strong negative correlation between logBrainWt and total sleep, as we saw in the pairwise plots in Part I.
+
+A 1-log kilogram increase in log body weight corresponds to a roughly a 6-minute increase in total sleep time relative to the baseline of danger level zero and accounting for other variables. On the other hand, a 1-log gram increase in log brain weight corresponds to roughly a 48-minute decrease in total sleep time.
+
+Land of type 'road' is associated with a decrease of 1.353 in the log land price (in log dollars)
+# on average relative to the baseline category of type 'land'.
+
+Confidence Interval for logBodyWt:
+
+$\beta_1 \pm$ t(0.95, df = 42)*sefit
+
+```{r}
+
+c(0.1012 - 0.214*0.4728, 0.1012 + 0.214*0.4728)
+```
+
+We are 95% confident the true mean log body weight of an animal falls between [0.0000208, 0.2023792] log kg There appears to be much more animals of smaller weight (< 5 log kg) than larger weight, so even on the original scale, this small range makes sense.
+
+\
+
+Confidence interval for logBraintWt:
+
+$\beta_2 \pm$ t(0.95, df = 42)*sefit
+
+```{r}
+c(-0.7988 --1.123*0.7116, -0.7988 -1.123*0.7116)
+```
+
+We are 95% confident the true mean log brain weight of an animal falls between [-1.5979268, 0.0003268] log grams. There appears to be much more animals of smaller brain weight (< 50 log grams) than larger weight, so even on the original scale, this small range makes sense.
+
+\
+
+# Part III: Model Search Methods
+
+```{r}
+library(MASS)
+
+log.sleep <- sleep 
+
+log.sleep$BodyWt <- NULL
+log.sleep$BrainWt <- NULL
+log.sleep$Life <- NULL
+log.sleep$GP <- NULL
+
+view(log.sleep)
+
+summary(lm(TS ~ logBodyWt + logBrainWt + logLife + logGP  + D, data = log.sleep))
+```
+
+```{r}
+log.sleep$species <- NULL
+
+null = lm(TS ~ 1, data = log.sleep)
+full = lm(TS ~ ., data = log.sleep)
+n = dim(sleep)[1]
+
+# Forward Selection by AIC
+stepAIC(null, scope = list(upper = full), direction = "forward", k = 2)
+
+# Forward Selection by BIC
+stepAIC(null, scope = list(upper = full), direction = "forward", k = log(n))
+```
+
+```{r backward elimination}
+# Backward Elimination by AIC
+stepAIC(full, direction = "backward", k = 2)
+# Backward Elimination by BIC
+stepAIC(full, direction = "backward", k = log(n))
+```
+
+```{r stepwise null}
+# Stepwise regression by AIC, starting from null model
+stepAIC(null, scope = list(upper = full), direction="both", k=2)
+# Stepwise regression by BIC, starting from null model
+stepAIC(null, scope = list(upper = full), direction = "both", k = log(n))
+```
+
+```{r stepwise full}
+# Stepwise regression by AIC, starting from full model
+stepAIC(full, scope = list(upper = full), direction="both", k=2)
+# Stepwise regression by BIC, starting from full model
+stepAIC(null, scope = list(upper = full), direction = "both", k = log(n))
+```
+
+Using all three methods of finding the right predictors for the best model fit — forward selection, backward elimination and stepwise regression — I found that the log(gestation period), log(Brain weight) and the categorical variable danger zones were the best predictors for the model, as follows:
+
+$E[TS | logGP, logBrainWt, D] = \beta_0 + \beta_2log(BrainWt) + \beta_4log(GP) + \beta_5U_{D2} + \beta_6U_{D3} + \beta_7U_{D4} + \beta_8U_{D5}$ 
+
+where:\
+$U_{D2} = 1$ if D = 2, 0 otherwise \
+$U_{D3} = 1$ if D = 3, 0 otherwise \
+$U_{D4} = 1$ if D = 4, 0 otherwise \
+$U_{D5} = 1$ if D = 5, 0 otherwise \
+
+All three models fits ended up using the same predictors to fit the best model fit and complexity for minimizing both AIC and BIC. These variables indicate that, in original scale, an animal's brain weight, gestation period length and how much danger they may be in indicate some correlation — we know this is a negative correlation for all three variables — between the variable and an animal's total sleep time in hours.
+
+\
+
+# Part IV: Model Checking
+
+```{r}
+sleep.nmod <- lm(TS ~ logBrainWt + logGP + D, data = log.sleep)
+summary(sleep.nmod)
+```
+
+```{r}
+aug <- augment(sleep.nmod)
+
+#Log Brain Weight residual plot
+aug %>% ggplot(aes(x = logBrainWt, y = .std.resid)) + labs(x = "log(Brain weight)", y = "Standardized Residuals") + geom_point(size = 2) + geom_abline(intercept = 0, slope = 0) + theme_bw(26) + theme(axis.title.y = element_text(size = 19))
+
+# Log gestation period residual plot
+aug %>% ggplot(aes(x = logGP, y = .std.resid)) + labs(x = "log(Gestation Period)", y = "Standardized Residuals") + geom_point(size = 2) + geom_abline(intercept = 0, slope = 0) + theme_bw(26) + theme(axis.title.y = element_text(size = 19))
+
+# Danger levels residual plot
+aug %>% ggplot(aes(x = D, y = .std.resid)) + labs(x = "Danger Levels", y = "Standardized Residuals") + geom_point(size = 2) + geom_abline(intercept = 0, slope = 0) + theme_bw(26) + theme(axis.title.y = element_text(size = 19))
+```
+
+The plots don’t particularly give any reason to doubt the MLR model assumptions. The residuals appear scattered randomly around zero with roughly constant variance. There are no obvious patterns present. It doesn't appear that any of the assumptions are not followed, as the randomness of each plot indicates there is no particular pattern. The only plot that causes some concern could be the danger levels' residuals plot because there is not much variance about zero, but there is still fair randomness overall. Within each danger level, there is not really enough points to make good inference individually by the Central Limit Theorem. The other two plots have a fine amount of randomness about zero, so there is no clear pattern.
+
+The log brain weight residual plot, however, does seem to have a lot of points hovering close to zero rather than be more random. This causes some concern, but there is still no visible pattern present.
+
+The main modeling assumptions are as follows: There is no linear correlation in the plot, satisfying the linearity assumption. None of the plots follow a normal distribution, satisfying the normality assumption. It doesn't appear there is any bias present and residual point seems independent. Constant variance also implies that there is some pattern but there is clearly none.
+
+\
+
+# Part V: Model Summarization
+
+```{r}
+summary(sleep.nmod)
+```
+
+## Question 1
+
+```{r BrainWt}
+(exp(-0.5319) - 1)*100 # Brain weight on original scale
+
+(exp(-1.4219) - 1)*100 # Gestation period on original scale
+```
+
+Because we are doing multiple linear regression, a single variable is already adjusted for the other variables. In this case, the individual values for the variables brain weight and gestation period are already adjusted for each other and for the categorical variables (danger levels 2-5).
+
+When adjusting for other variables, a one-gram increase in brain weight is associated with roughly a 41.25% decrease in total sleep time on average relative to the baseline category of danger level 1, meaning the animal is fairly safe. This correlation is stronger for gestation period. When adjusting for other coefficients, a one-day increase in gestation period corresponds to a 75.87% decrease in total sleep time on average relative to a danger level of 1.
+
+
+## Question 2
+
+```{r BrainWt plot}
+
+model <- lm(TS ~ log(BrainWt) + log(GP) + D, data = sleep)
+
+gsize = 100
+
+brainwt_gp_pred = data.frame(BrainWt = rep(seq(from = min(sleep$BrainWt), to = max(sleep$BrainWt), length = gsize), 5), GP = rep(seq(from = min(sleep$GP), to = max(sleep$GP), length = gsize), 5), D = c(rep("D1", gsize), rep("D2", 100), rep("D3", 100), rep("D4", 100), rep("D5", 100)))
+
+plot_info <- predict(model, newdata = brainwt_gp_pred, interval = "confidence")
+
+# Brain Weight plot
+brainwt_gp_pred %>% ggplot(aes(x = BrainWt, y = plot_info[, "fit"], color = D)) + geom_line() + xlab("Brain Weight (grams)") + ylab("Total sleep (hours)") + theme_light()
+
+# GP plot
+brainwt_gp_pred %>% ggplot(aes(x = GP, y = plot_info[, "fit"], color = D)) + geom_line() + xlab("Gestation Period (days)") + ylab("Total sleep (hours)") + theme_light()
+
+```
+
+\
+In the case of brain weight, as brain weight increases, total sleep exponentially decreases, and this follows what we found in 5.1, where there was a 41% decrease in total sleep hours per gram of brain weight. Similarly, as an animal's gestation time increases, their total sleep time decreases, probably due to discomfort during their average sleeping hours. This corresponds with the 75% decrease in total sleep hours per day of gestation time. Put simply, if an animal's brain weighs more or their gestation time is longer, they will likely have less total time to sleep because of real-world factors.
+
+\
+
+
+
+
+
+
+
