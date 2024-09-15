@@ -1,0 +1,303 @@
+---
+title: "Basketball Testing"
+author: "Gaurav Law"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(hoopR)
+library(ggplot2)
+library(tidyverse)
+library(nbastatR)
+library(devtools)
+# devtools::install_github("lbenz730/ncaahoopR")
+library(ncaahoopR)
+library(extrafont)
+library(cowplot)
+library(MASS)
+library(dplyr)
+library(ggrepel)
+library(ggimage)
+```
+
+
+```{r}
+
+nba_adv <- read_csv("~/Downloads/NBA_2023-2024_advanced.csv")
+nba_basic <- read_csv("~/Downloads/NBA_2023-2024_basic.csv")
+
+nba_basic <- nba_basic %>%
+  filter(Period == "game")
+
+nba_full <- nba_basic %>%
+  full_join(nba_adv, by = c("Player Name", "Player Reference", "Game Reference", "Team", "Period", "Starter","MP"))
+
+nba_full$Start_Code <- as.integer(nba_full$Starter)
+  
+```
+
+```{r}
+
+nba_basic_mod <- glm(Start_Code ~ as.integer(PTS)*as.integer(AST)*as.integer(TRB) + as.integer(BLK)*as.integer(STL) + as.integer(`FG%`) + as.integer(`3P%`) + as.integer(`FT%`) + as.integer(TOV), family = binomial, data = nba_full)
+
+summary(nba_basic_mod)
+
+summary(glm(Start_Code ~ , family = binomial, data = nba_full))
+
+nba_int <- nba_full
+
+nba_int$`FG%` <- as.integer(nba_int$`FG%`)
+
+
+```
+
+
+```{r}
+nba_total_basic <- nba_full %>%
+  filter(MP != "Did Not Play") %>%
+  filter(MP != "Did Not Dress") %>%
+  filter(MP != "Not With Team") %>%
+  filter(MP != "Player Suspended") %>%
+  group_by(Team, `Player Name`, Starter) %>%
+  summarise(
+            Totals = sum(as.integer(PTS) +
+                           as.integer(AST) +
+                           as.integer(TRB) +
+                           as.integer(BLK) +
+                           as.integer(STL)),
+            count = n(),
+            `Mean Totals` = round(Totals / count, 2),
+            PTS = round(mean(as.integer(PTS)), 2),
+            AST = round(mean(as.integer(AST)), 2),
+            TRB = round(mean(as.integer(TRB)), 2),
+            BLK = round(mean(as.integer(BLK)), 2),
+            STL = round(mean(as.integer(STL)), 2))
+
+nba_total_basic <- nba_total_basic %>%
+  left_join(players_data_full, by = c(`Player Name` = "athlete_display_name"))
+
+nba_total_basic <- subset(nba_total_basic, team_abbreviation != "WEST")
+nba_total_basic <- subset(nba_total_basic, team_abbreviation != "EAST")
+            
+```
+
+```{r hoopR}
+players_data_full <- hoopR::load_nba_player_box()
+players_data_full <- players_data_full %>%
+  mutate(athlete_display_name = case_when(
+    athlete_display_name == "Luka Doncic" ~ "Luka Dončić",
+    athlete_display_name == "Alperen Sengun" ~ "Alperen Şengün",
+    athlete_display_name == "Nikola Jokic" ~ "Nikola Jokić",
+    athlete_display_name == "Kristaps Porzingis" ~ "Kristaps Porziņģis",
+    athlete_display_name == "Nikola Vucevic" ~ "Nikola Vučević",
+    athlete_display_name == "Bogdan Bogdanovic" ~ "Bogdan Bogdanović",
+    TRUE ~ athlete_display_name
+  )) %>%
+  mutate(team_abbreviation = case_when(
+    team_abbreviation == "NY" ~ "NYK",
+    team_abbreviation == "NO" ~ "NOP",
+    team_abbreviation == "UTAH" ~ "UTA",
+    team_abbreviation == "GS" ~ "GSW",
+    team_abbreviation == "SA" ~ "SAS",
+    TRUE ~ team_abbreviation
+  ))
+
+players_data_full <- players_data_full %>%
+  #drop_na() %>%
+  group_by(team_abbreviation, athlete_display_name) %>%
+  reframe(athlete_headshot_href) %>%
+  distinct()
+
+nba_basic <- nba_basic %>%
+  mutate(Team = case_when(
+    Team == "BRK" ~ "BKN",
+    Team == "PHO" ~ "PHX",
+    Team == "WAS" ~ "WSH",
+    Team == "CHO" ~ "CHA",
+    TRUE ~ Team
+  ))
+```
+
+
+```{r make 6moy}
+six_moy <- nba_total_basic %>%
+  filter(Starter == "FALSE" & count >= 45) %>%
+  arrange(-`Mean Totals`)
+
+six_moy$exp_rank <- (1:length(six_moy$`Player Name`))
+
+#len = length(six_moy$`Player Name`)
+
+#six_moy$obs_rank = NA
+
+#i = 1
+
+smoy_obs <- data.frame("Player Name" = c("Naz Reid",
+                        "Malik Monk",
+                        "Bobby Portis",
+                        "Norman Powell",
+                        "Bogdan Bogdanović",
+                        "Jose Alvarado",
+                        "Russell Westbrook",
+                        "T.J. McConnell",
+                        "Jonathan Isaac",
+                        "Jaime Jaquez Jr.",
+                        "Tim Hardaway Jr."
+                        ),
+                      obs_rank = c(1:11))
+
+smoy_obs$`Player Name` = smoy_obs$Player.Name
+
+smoy_obs <- smoy_obs %>%
+  select(-Player.Name)
+
+six_moy <- six_moy %>%
+  left_join(smoy_obs, by = c("Player Name" = "Player Name"))
+
+six_moy_plot <- six_moy %>%
+  drop_na()
+
+six_moy_plot
+
+```
+
+
+```{r overall 6moy}
+six_moy <- six_moy %>%
+  filter(`Mean Totals` >= 13) 
+
+six_moy %>%
+  ggplot(aes(x = exp_rank, y = Totals)) +
+  #horizontal line with mean EPA
+  geom_vline(xintercept = mean(six_moy$exp_rank), color = "red", linetype = "dashed", alpha=0.5) +
+    geom_point(
+             shape = 21, alpha = 0.9) +
+  scale_color_identity(aesthetics = c("fill", "color")) +
+  #ggrepel::geom_label_repel(aes(label = `Player Name`)) +
+  geom_image(aes(image = athlete_headshot_href), size = 0.1) +
+  theme_bw() +
+  labs(x = "Expected Result (Based on Sum of Basic Stats)",
+       y = "Full Totals",
+       title = "How good are basic stats at predicting 6MOY?",
+       caption = "Author: Gaurav Law (@glawb45)\nData: Kaggle") +
+  scale_x_continuous(breaks = scales::pretty_breaks(n = 8)) +
+  scale_y_continuous(breaks = scales::pretty_breaks(n = 8)) +
+  theme(plot.title = element_text(size = 22, hjust = 0.5, face = "bold"),
+        plot.subtitle = element_text(size = 16, hjust = 0.5)) +
+  scale_x_reverse()
+```
+
+```{r 6moy plot}
+six_moy_plot %>%
+  ggplot(aes(x = exp_rank, y = obs_rank)) +
+  #horizontal line with mean EPA
+  geom_vline(xintercept = mean(six_moy_plot$exp_rank), color = "red", linetype = "dashed", alpha=0.5) +
+    geom_point(
+             shape = 21, alpha = 0.9) +
+  scale_color_identity(aesthetics = c("fill", "color")) +
+  #ggrepel::geom_label_repel(aes(label = `Player Name`)) +
+  geom_image(aes(image = athlete_headshot_href), size = 0.17) +
+  theme_bw() +
+  labs(x = "Expected Result (Based on Sum of Basic Stats)",
+       y = "Observed 6MOY Voting Rank",
+       title = "How good are basic stats at predicting 6MOY?",
+       caption = "Author: Gaurav Law (@glawb45)\nData: Kaggle") +
+  scale_x_continuous(breaks = scales::pretty_breaks(n = 8)) +
+  scale_y_continuous(breaks = scales::pretty_breaks(n = 8)) +
+  theme(plot.title = element_text(size = 22, hjust = 0.5, face = "bold"),
+        plot.subtitle = element_text(size = 16, hjust = 0.5)) +
+  scale_y_reverse() + scale_x_reverse() +
+  ylim(12, 0.5)
+
+```
+
+
+```{r 6moy model}
+summary(glm(obs_rank ~ exp_rank -1, data = six_moy_plot))
+```
+
+
+```{r make mvp}
+nba_mvp <- nba_total_basic %>%
+  filter(count >= 65) %>%
+  arrange(-`Mean Totals`)
+
+nba_mvp$exp_rank <- (1:length(nba_mvp$`Player Name`))
+
+#len = length(six_moy$`Player Name`)
+
+#six_moy$obs_rank = NA
+
+#i = 1
+
+mvp_obs <- data.frame("Player Name" = c("Nikola Jokić",
+                        "Shai Gilgeous-Alexander",
+                        "Luka Dončić",
+                        "Giannis Antetokounmpo",
+                        "Jalen Brunson",
+                        "Jayson Tatum",
+                        "Anthony Edwards",
+                        "Domantas Sabonis",
+                        "Kevin Durant"
+                        ),
+                      obs_rank = c(1:9))
+
+mvp_obs$`Player Name` = mvp_obs$Player.Name
+
+mvp_obs <- mvp_obs %>%
+  select(-Player.Name)
+
+nba_mvp <- nba_mvp %>%
+  left_join(mvp_obs, by = c("Player Name" = "Player Name"))
+
+mvp_plot <- nba_mvp %>%
+  drop_na()
+
+mvp_plot
+```
+
+```{r mvp plot}
+mvp_plot %>%
+  ggplot(aes(x = exp_rank, y = obs_rank)) +
+  #horizontal line with mean EPA
+  geom_vline(xintercept = mean(mvp_plot$exp_rank), color = "red", linetype = "dashed", alpha=0.5) +
+    geom_point(
+             shape = 21, alpha = 0.9) +
+  scale_color_identity(aesthetics = c("fill", "color")) +
+  geom_image(aes(image = athlete_headshot_href), size = 0.17) +
+  theme_bw() +
+  labs(x = "Expected Result (Based on Sum of Basic Stats)",
+       y = "Observed MVP Voting Rank",
+       title = "How good are basic stats at predicting MVP?",
+       caption = "Author: Gaurav Law (@glawb45)\nData: Kaggle") +
+  scale_x_continuous(breaks = scales::pretty_breaks(n = 8)) +
+  scale_y_continuous(breaks = scales::pretty_breaks(n = 8)) +
+  theme(plot.title = element_text(size = 22, hjust = 0.5, face = "bold"),
+        plot.subtitle = element_text(size = 16, hjust = 0.5)) +
+  scale_y_reverse() + scale_x_reverse() +
+  ylim(10, 0.5)
+
+```
+
+
+
+
+
+
+
+
+
+
+```{r}
+summary(glm(obs_rank ~ exp_rank -1, data = mvp_plot))
+```
+
+
+
+
