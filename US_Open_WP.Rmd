@@ -1,0 +1,230 @@
+---
+title: "US Open"
+author: "Gaurav Law"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(ggrepel)
+library(dplyr)
+library(devtools)
+library(servevolleyR)
+library(deuce)
+library(gt)
+library(gtExtras)
+library(countrycode)
+library(tidyr)
+library(scales)
+
+library(xgboost)
+library(randomForest)
+library(caret)
+```
+
+
+```{r simGames}
+jannik_avg <- simGames(n = 30.1*7, p = 0.809, p2 = 0.597, firstServe = 0.578, player = "Jannik Sinner")
+
+djoker_avg <- simGames(n = *7, p = ?, p2 = ?, firstServe = ?, player = "Novak Djokovic")
+
+carlos_avg <- simGames(n = 31.6*7, p = 0.763, p2 = 0.557, firstServe = 0.64, player = "Carlos Alcaraz")
+
+zverev_avg <- simGames(n = 28.6*7, p = 0.8, p2 = 0.567, firstServe = 0.691, player = "Alexander Zverev")
+
+med_avg <- simGames(n = 26.3*7, p = 0.765, p2 = 0.483, firstServe = 0.673, player = "Daniil Medvedev")
+
+rublev_avg <- simGames(n = 32.1*7, p = 0.771, p2 = 0.505, firstServe = 0.627, player = "Andrey Rublev")
+
+demon_avg <- simGames(n = 28*7, p = 0.759, p2 = 0.545, firstServe = 0.567, player = "Alex De Minaur")
+
+ruud_avg <- simGames(n = 31.6*7, p = 0.739, p2 = 0.477, firstServe = 0.59, player = "Casper Ruud")
+
+hubie_avg <- simGames(n = 30*7, p = 0.813, p2 = 0.56, firstServe = 0.692, player = "Hubert Hurkacz")
+
+grigor_avg <- simGames(n = 27.1*7, p = 0.826, p2 = 0.524, firstServe = 0.583, player = "Grigor Dimitrov")
+
+stef_avg <- simGames(n = 31.5*7, p = 0.802, p2 = 0.607, firstServe = 0.661, player = "Stefanos Tsitsipas")
+```
+
+```{r Flags}
+# Sample data
+countries <- c("Italy",
+               "Serbia",
+               "Spain",
+               "Germany",
+               "Russia",
+               "Russia",
+               "Poland",
+               "Norway",
+               "Hungary",
+               "Australia")
+               "USA",
+               "Greece",
+               "USA",
+               "USA",
+               "France",
+               "Italy",
+               "Denmark",
+               "Canada",
+               "Argentina",
+               "Chile",
+               "Russia",
+               "USA",
+               "Chile",
+               "Kazakhstan",
+               "France",
+               "Great Britain",
+               "Netherlands",
+               "France",
+               "Czechia",
+               "USA",
+               "France",
+               "Argentina",
+               "Argentina",
+               "China",
+               "Italy",
+               "Argentina",
+               "Germany",
+               "Czechia",
+               "Italy",
+               "Australia"
+               )
+
+# Get ISO2 country codes
+iso2_codes <- countrycode(countries, "country.name", "iso2c")
+
+# Create flag URLs
+flag_urls <- paste0("https://flagcdn.com/w40/", tolower(iso2_codes), ".png")
+
+```
+
+```{r players}
+Player <- c("Jannik Sinner",
+            "Novak Djokovic",
+            "Carlos Alcaraz",
+            "Alexander Zverev",
+            "Daniil Medvedev",
+            "Andrey Rublev",
+            "Hubert Hurkacz",
+            "Casper Ruud",
+            "Grigor Dimitrov",
+            "Alex De Minaur")
+            "Taylor Fritz",
+            "Stefanos Tsitsipas",
+            "Tommy Paul",
+            "Ben Shelton",
+            "Ugo Humbert",
+            "Lorenzo Musetti",
+            "Holger Rune",
+            "Felix Auger-Aliassime",
+            "Sebastian Baez",
+            "Alejandro Tabilo",
+            "Karen Khachanov",
+            "Sebastian Korda",
+            "Nicolas Jarry",
+            "Alexander Bublik",
+            "Adrian Mannarino",
+            "Jack Draper",
+            "Tallon Griekspoor",
+            "Arthur Fils",
+            "Jiri Lehecka",
+            "Frances Tiafoe",
+            "Gael Monfils",
+            "Tomas Martín Etcheverry",
+            "Francisco Cerundolo",
+            "Zhang Zhizhen",
+            "Luciano Darderi",
+            "Mariano Navone",
+            "Jan-Lennard Struff",
+            "Tomas Machac",
+            "Matteo Arnaldi",
+            "Jordan Thompson"
+            )
+```
+
+```{r clean datasets}
+prim_stat <- read_csv("~/Downloads/US Open Primary Stats.csv")
+top_finish <- read_csv("~/Downloads/US Open Top Finishes.csv")
+
+prim_stat <- prim_stat[-1, ]
+prim_stat <- drop_na(prim_stat, `Average rally length`)
+
+top_finish <- top_finish[-1, ]
+top_finish <- drop_na(top_finish, `Last match Result`)
+
+prim_stat <- prim_stat %>%
+  left_join(top_finish, by = c("Ranking", "Player", "Top Finish at US"))
+
+prim_stat <- rename(prim_stat, Country = `Country (fill in with Flags in R)`)
+
+prim_stat$Country <- flag_urls
+```
+
+```{r}
+
+# Create a gt table
+gt_uso <-
+  prim_stat %>%
+  #arrange(-Calculated_WP) %>%
+  #mutate(Calculated_WP = 100*round(Calculated_WP, 3)) %>%
+  gt() %>%
+  text_transform(
+    locations = cells_body(columns = c(Country)),
+    fn = function(x) {
+      lapply(x, gt::html)
+      }
+    ) %>%
+           cols_align(align = "center") %>%
+           cols_label(Ranking = "Ranking",
+                      Player = "Player",
+                      Country = "Country",
+                      `Height (in)`= "Height (in.)",
+                      `Weight (lbs)` = "Weight (lbs)",
+                      `Top Finish at US` = "Top Finish") %>%
+           gtExtras::gt_theme_538() %>%
+  gtExtras::gt_img_rows(Country)
+
+gt_uso
+```
+
+```{r predictions}
+set.seed(123)
+
+train_index <- createDataPartition(prim_stat$Player, p = 0.8, list = FALSE)
+train_data <- iris[train_index, ]
+test_data <- iris[-train_index, ]
+
+# Scaling numerical features
+preproc <- preProcess(train_data[, -5], method = c("center", "scale"))
+train_data[, -5] <- predict(preproc, train_data[, -5])
+test_data[, -5] <- predict(preproc, test_data[, -5])
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

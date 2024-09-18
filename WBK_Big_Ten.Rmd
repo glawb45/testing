@@ -1,0 +1,329 @@
+---
+title: "NCAAW Big Ten Top Players by Class"
+author: "Gaurav Law"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(broom)
+library(ggrepel)
+```
+
+```{r load data}
+freshman <- read_csv("/Users/gauravlaw/Downloads/Big Ten Stats - Freshman.csv")
+sophomore <- read_csv("/Users/gauravlaw/Downloads/Big Ten Stats - Sophomore.csv")
+junior <- read_csv("/Users/gauravlaw/Downloads/Big Ten Stats - Junior.csv")
+sen_grad <- read_csv("/Users/gauravlaw/Downloads/Big Ten Stats - Senior_Graduate.csv")
+```
+
+```{r basic stats}
+freshman <- freshman %>%
+  filter(G >= 21)
+
+names(freshman)[names(freshman) == "G"] <- "Games"
+names(freshman)[names(freshman) == "2:00 PM"] <- "2FGM"
+names(freshman)[names(freshman) == "3:00 PM"] <- "3FGM"
+
+freshman$ortg <- 
+
+view(freshman)
+```
+
+```{r colors}
+freshman$color
+
+f_length <- nrow(freshman)
+
+while (i < f_length) {
+  if (freshman$TEAM == "Nebraska") {
+    freshman$color = "red"
+  }
+  
+  else if (freshman$TEAM == "Minnesota") {
+    freshman$color = "brown"
+  }
+  
+  else if (freshman$TEAM == "Purdue") {
+    freshman$color = "gold"
+  }
+  
+  else if (freshman$TEAM == "Rutgers") {
+    freshman$color = "red3"
+  }
+  
+  else if (freshman$TEAM == "Northwestern") {
+    freshman$color = "purple"
+  }
+  
+  else if (freshman$TEAM == "Wisconsin") {
+    freshman$color = "white"
+  }
+  
+  else if (freshman$TEAM == "Penn St.") {
+    freshman$color = "blue4"
+  }
+  
+  else if (freshman$TEAM == "Illinois") {
+    freshman$color = "orange2"
+  }
+  
+  else if (freshman$TEAM == "Indiana") {
+    freshman$color = "maroon"
+  }
+  
+  else if (freshman$TEAM == "Maryland") {
+    freshman$color = "black"
+  }
+  
+  else if (freshman$TEAM == "Michigan") {
+    freshman$color = "blue"
+  }
+  
+}
+
+freshman
+```
+
+```{r test xy}
+freshman %>%
+  ggplot(aes(x = "2FGM", y = "3FGM")) + geom_point(fill = color) + theme_classic()
+
+ ggplot(aes(x = pass_rate, y = epa_play)) +
+  geom_point(aes(fill = team_color, color = team_color2, size = plays), 
+             shape = 21, alpha = 0.9) +
+  scale_color_identity(aesthetics = c("fill", "color")) +
+  ggrepel::geom_text_repel(aes(label = name)) +
+  theme_bw() +
+  geom_hline(yintercept = mean(qb_epa_play$epa_play), linetype = "dashed") +
+  geom_vline(xintercept = mean(qb_epa_play$pass_rate), linetype = "dashed") +
+  labs(x = "Pass Rate",
+       y = "EPA/Play",
+       title = "EPA/Play and Pass Rate, 2023",
+       subtitle = "Minimum of 400 plays and 100 pass attempts to be included") +
+  scale_x_continuous(breaks = scales::pretty_breaks(n = 8)) +
+  scale_y_continuous(breaks = scales::pretty_breaks(n = 8)) +
+  theme(plot.title = element_text(size = 22, hjust = 0.5, face = "bold"),
+        plot.subtitle = element_text(size = 16, hjust = 0.5))
+```
+
+```{r advanced}
+
+fr_adv <- read_csv("/Users/gauravlaw/Downloads/Big Ten Stats - Freshman Advanced.csv")
+so_adv <- read_csv("/Users/gauravlaw/Downloads/Big Ten Stats - Sophomore Advanced.csv")
+jun_adv <- read_csv("/Users/gauravlaw/Downloads/Big Ten Stats - Junior Advanced.csv")
+
+```
+
+
+# Freshman
+
+```{r freshman ws graph}
+
+fr_adv %>%
+  ggplot(aes(x = `DEF WS`, y = `OFF WS`)) + theme_classic() + geom_point() + ggrepel::geom_text_repel(aes(label = PLAYER)) + geom_hline(yintercept = mean(fr_adv$`DEF WS`), linetype = "dashed", color = "red") + geom_vline(xintercept = mean(fr_adv$`OFF WS`), linetype = "dashed", color = "red")
+
+```
+
+```{r freshman ratings}
+
+fr_adv %>%
+  ggplot(aes(x = `PLAYER DEF RTG`, y = `PLAYER OFF RTG`)) + theme_classic() + geom_point() + ggrepel::geom_text_repel(aes(label = PLAYER)) + geom_hline(yintercept = mean(fr_adv$`PLAYER OFF RTG`), linetype = "dashed", color = "red") + geom_vline(xintercept = mean(fr_adv$`PLAYER DEF RTG`), linetype = "dashed", color = "red") + xlim(c(max(fr_adv$`PLAYER DEF RTG`), min(fr_adv$`PLAYER DEF RTG`)))
+
+```
+
+
+```{r freshman win shares}
+fr_adv %>%
+  ggplot(aes(x = WS, y = fct_reorder(PLAYER, WS))) +
+  geom_bar(aes(fill = "red", color = "black"), 
+           stat = "identity", alpha = 0.9) +
+  scale_color_identity(aesthetics = c("fill", "color")) +
+  theme_minimal() + labs(x = "Win Shares", y = "Player")
+```
+
+```{r freshman offensive win shares}
+
+fr_adv %>%
+  ggplot(aes(x = `OFF WS`, y = fct_reorder(PLAYER, `OFF WS`))) +
+  geom_bar(aes(fill = "green", color = "black"), 
+           stat = "identity", alpha = 0.9) +
+  scale_color_identity(aesthetics = c("fill", "color")) +
+  theme_minimal() + labs(x = "Offensive Win Shares", y = "Player")
+```
+
+```{r freshman defensive win shares}
+
+fr_adv %>%
+  ggplot(aes(x = `DEF WS`, y = fct_reorder(PLAYER, `DEF WS`))) +
+  geom_bar(aes(fill = "blue", color = "black"), 
+           stat = "identity", alpha = 0.9) +
+  scale_color_identity(aesthetics = c("fill", "color")) +
+  theme_minimal() + labs(x = "Defensive Win Shares", y = "Player")
+```
+
+# Sophomores
+
+```{r sophomore win shares graph}
+so_adv %>%
+  ggplot(aes(x = `DEF WS`, y = `OFF WS`)) + theme_classic() + geom_point() + ggrepel::geom_text_repel(aes(label = PLAYER)) + geom_hline(yintercept = mean(so_adv$`OFF WS`), linetype = "dashed", color = "red") + geom_vline(xintercept = mean(so_adv$`DEF WS`), linetype = "dashed", color = "red")
+```
+
+```{r sophomore ratings}
+
+so_adv %>%
+  ggplot(aes(x = `PLAYER DEF RTG`, y = `PLAYER OFF RTG`)) + theme_classic() + geom_point() + ggrepel::geom_text_repel(aes(label = PLAYER)) + geom_hline(yintercept = mean(so_adv$`PLAYER OFF RTG`), linetype = "dashed", color = "red") + geom_vline(xintercept = mean(so_adv$`PLAYER DEF RTG`), linetype = "dashed", color = "red") + xlim(c(max(so_adv$`PLAYER DEF RTG`), min(so_adv$`PLAYER DEF RTG`)))
+
+```
+
+
+```{r sophomore usage}
+
+sof_plus <- read_csv("/Users/gauravlaw/Downloads/Big Ten Stats - Sophomore Advanced+.csv")
+
+sof_plus %>%
+  ggplot(aes(x = `USG%`, y = `EFG%`)) + theme_classic() + geom_point() + ggrepel::geom_text_repel(aes(label = PLAYER)) + geom_hline(yintercept = mean(sof_plus$`EFG%`), linetype = "dashed", color = "red") + geom_vline(xintercept = mean(sof_plus$`USG%`), linetype = "dashed", color = "red")
+```
+
+```{r sophomore win shares}
+so_adv %>%
+  ggplot(aes(x = WS, y = fct_reorder(PLAYER, WS))) +
+  geom_bar(aes(fill = "red", color = "black"), 
+           stat = "identity", alpha = 0.9) +
+  scale_color_identity(aesthetics = c("fill", "color")) +
+  theme_minimal() + labs(x = "Win Shares", y = "Player")
+```
+
+```{r sophomore offensive win shares}
+
+so_adv %>%
+  ggplot(aes(x = `OFF WS`, y = fct_reorder(PLAYER, `OFF WS`))) +
+  geom_bar(aes(fill = "green", color = "black"), 
+           stat = "identity", alpha = 0.9) +
+  scale_color_identity(aesthetics = c("fill", "color")) +
+  theme_minimal() + labs(x = "Offensive Win Shares", y = "Player")
+```
+
+```{r sophomore defensive win shares}
+
+so_adv %>%
+  ggplot(aes(x = `DEF WS`, y = fct_reorder(PLAYER, `DEF WS`))) +
+  geom_bar(aes(fill = "blue", color = "black"), 
+           stat = "identity", alpha = 0.9) +
+  scale_color_identity(aesthetics = c("fill", "color")) +
+  theme_minimal() + labs(x = "Defensive Win Shares", y = "Player")
+```
+
+
+```{r}
+so_adv$`NET RATING` <- so_adv$`PLAYER OFF RTG` - so_adv$`PLAYER DEF RTG`
+
+summary(glm(WS ~ `NET RATING`, data = so_adv))
+```
+
+
+# Juniors
+
+```{r}
+jun_adv %>%
+  ggplot(aes(x = `DEF WS`, y = `OFF WS`)) + theme_classic() + geom_point() + ggrepel::geom_text_repel(aes(label = PLAYER)) + geom_hline(yintercept = mean(jun_adv$`OFF WS`), linetype = "dashed", color = "red") + geom_vline(xintercept = mean(jun_adv$`DEF WS`), linetype = "dashed", color = "red")
+```
+
+```{r}
+
+jun_adv %>%
+  ggplot(aes(x = `PLAYER DEF RTG`, y = `PLAYER OFF RTG`)) + theme_classic() + geom_point() + ggrepel::geom_text_repel(aes(label = PLAYER)) + geom_hline(yintercept = mean(jun_adv$`PLAYER OFF RTG`), linetype = "dashed", color = "red") + geom_vline(xintercept = mean(jun_adv$`PLAYER DEF RTG`), linetype = "dashed", color = "red") + xlim(c(max(jun_adv$`PLAYER DEF RTG`), min(jun_adv$`PLAYER DEF RTG`)))
+
+```
+
+
+```{r junior win shares}
+jun_adv %>%
+  head(n=20) %>%
+  ggplot(aes(x = WS, y = fct_reorder(PLAYER, WS))) +
+  geom_bar(aes(fill = "red", color = "black"), 
+           stat = "identity", alpha = 0.9) +
+  scale_color_identity(aesthetics = c("fill", "color")) +
+  theme_minimal() + labs(x = "Win Shares", y = "Player")
+```
+
+```{r junior offensive win shares}
+
+jun_adv %>%
+  ggplot(aes(x = `OFF WS`, y = fct_reorder(PLAYER, `OFF WS`))) +
+  geom_bar(aes(fill = "green", color = "black"), 
+           stat = "identity", alpha = 0.9) +
+  scale_color_identity(aesthetics = c("fill", "color")) +
+  theme_minimal() + labs(x = "Offensive Win Shares", y = "Player")
+```
+
+```{r junior defensive win shares}
+
+jun_adv %>%
+  ggplot(aes(x = `DEF WS`, y = fct_reorder(PLAYER, `DEF WS`))) +
+  geom_bar(aes(fill = "blue", color = "black"), 
+           stat = "identity", alpha = 0.9) +
+  scale_color_identity(aesthetics = c("fill", "color")) +
+  theme_minimal() + labs(x = "Defensive Win Shares", y = "Player")
+```
+
+
+# Seniors/Graduates
+
+
+```{r}
+sen_adv <- read_csv("/Users/gauravlaw/Downloads/Big Ten Stats - Senior_Graduate Advanced.csv")
+
+sen_adv <- sen_adv %>%
+  filter(WS >= 2.0)
+sen_adv %>%
+  ggplot(aes(x = `DEF WS`, y = `OFF WS`)) + theme_classic() + geom_point() + ggrepel::geom_text_repel(aes(label = PLAYER)) + geom_hline(yintercept = mean(sen_adv$`OFF WS`), linetype = "dashed", color = "red") + geom_vline(xintercept = mean(sen_adv$`DEF WS`), linetype = "dashed", color = "red")
+```
+
+```{r}
+
+sen_adv %>%
+  ggplot(aes(x = `PLAYER DEF RTG`, y = `PLAYER OFF RTG`)) + theme_classic() + geom_point() + ggrepel::geom_text_repel(aes(label = PLAYER)) + geom_hline(yintercept = mean(sen_adv$`PLAYER OFF RTG`), linetype = "dashed", color = "red") + geom_vline(xintercept = mean(sen_adv$`PLAYER DEF RTG`), linetype = "dashed", color = "red") + xlim(c(max(sen_adv$`PLAYER DEF RTG`), min(sen_adv$`PLAYER DEF RTG`)))
+
+```
+
+
+```{r senior win shares}
+sen_adv %>%
+  ggplot(aes(x = WS, y = fct_reorder(PLAYER, WS))) +
+  geom_bar(aes(fill = "red", color = "black"), 
+           stat = "identity", alpha = 0.9) +
+  scale_color_identity(aesthetics = c("fill", "color")) +
+  theme_minimal() + labs(x = "Win Shares", y = "Player")
+```
+
+```{r senior offensive win shares}
+
+sen_adv %>%
+  ggplot(aes(x = `OFF WS`, y = fct_reorder(PLAYER, `OFF WS`))) +
+  geom_bar(aes(fill = "green", color = "black"), 
+           stat = "identity", alpha = 0.9) +
+  scale_color_identity(aesthetics = c("fill", "color")) +
+  theme_minimal() + labs(x = "Offensive Win Shares", y = "Player")
+```
+
+```{r senior defensive win shares}
+
+sen_adv %>%
+  ggplot(aes(x = `DEF WS`, y = fct_reorder(PLAYER, `DEF WS`))) +
+  geom_bar(aes(fill = "blue", color = "black"), 
+           stat = "identity", alpha = 0.9) +
+  scale_color_identity(aesthetics = c("fill", "color")) +
+  theme_minimal() + labs(x = "Defensive Win Shares", y = "Player")
+```
+
+
+
+
+
+
